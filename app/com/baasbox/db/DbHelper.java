@@ -192,7 +192,10 @@ public class DbHelper {
 	 * @return the List of the record retrieved (the command MUST be a select)
 	 */
 	public static List<ODocument> selectCommandExecute(OCommandRequest command, Object[] params){
+		if (Logger.isDebugEnabled()) Logger.debug("DbHelper.selectCommandExecute(): about to execute query");
+		command.setUseCache(true);
 		List<ODocument> queryResult = command.execute((Object[])params);
+		if (Logger.isDebugEnabled()) Logger.debug("DbHelper.selectCommandExecute(): Query executed. Returned " + queryResult.size() + " records");
 		return queryResult;
 	}
 	public static Integer sqlCommandExecute(OCommandRequest command, Object[] params){

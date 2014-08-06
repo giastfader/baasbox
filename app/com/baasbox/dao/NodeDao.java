@@ -172,7 +172,9 @@ public abstract class NodeDao  {
 		List<ODocument> result = null;
 		OCommandRequest command = DbHelper.selectCommandBuilder(MODEL_NAME, false, criteria);
 		try{
+			if (Logger.isDebugEnabled()) Logger.debug("NodeDao.get(): about to execute query");
 			result = DbHelper.selectCommandExecute(command, criteria.getParams());
+			if (Logger.isDebugEnabled()) Logger.debug("NodeDao.get(): query executed");
 		}catch (OCommandExecutionException e ){
 			throw new InvalidCriteriaException("Invalid criteria. Please check if your querystring is encoded in a corrected way. Double check the single-quote and the quote characters",e);
 			
