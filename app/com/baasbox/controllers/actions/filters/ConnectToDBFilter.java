@@ -87,7 +87,7 @@ public class ConnectToDBFilter extends Action.Simple {
 			result = F.Promise.<SimpleResult>pure(forbidden(ExceptionUtils.getMessage(e)));
 		}catch (InvalidAppCodeException e){
 			if (BaasBoxLogger.isDebugEnabled()) BaasBoxLogger.debug("ConnectToDB: Invalid App Code " + ExceptionUtils.getMessage(e));
-			result = F.Promise.<SimpleResult>pure(unauthorized(ExceptionUtils.getMessage(e)));	
+			result = F.Promise.<SimpleResult>pure(unauthorized("Missing required or invalid authorization info"));
 		}catch (Throwable e){
 			if (BaasBoxLogger.isDebugEnabled()) BaasBoxLogger.debug("ConnectToDB: an expected error has been detected: "+ ExceptionUtils.getFullStackTrace(e));
 			result = F.Promise.<SimpleResult>pure(internalServerError(ExceptionUtils.getFullStackTrace(e)));	

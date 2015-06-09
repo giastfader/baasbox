@@ -23,7 +23,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 
+import com.baasbox.security.auth.AuthenticatorService;
+import com.baasbox.security.auth.Credentials;
+import com.baasbox.security.auth.Tokens;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
@@ -79,9 +83,7 @@ import com.baasbox.util.QueryParams;
 import com.baasbox.util.Util;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.google.common.collect.ImmutableMap;
 import com.orientechnologies.orient.core.db.record.ODatabaseRecordTx;
 import com.orientechnologies.orient.core.db.record.OIdentifiable;
 import com.orientechnologies.orient.core.exception.OSecurityAccessException;
@@ -119,6 +121,31 @@ public class User extends Controller {
 		}
 	}
 
+	@With({AdminCredentialWrapFilterAsync.class})
+	@BodyParser.Of(BodyParser.Json.class)
+	public static F.Promise<Result> refresh(){
+		if (BaasBoxLogger.isTraceEnabled()) BaasBoxLogger.trace("Method start");
+		JsonNode jsonNode = request().body().asJson();
+		JsonNode refresh = jsonNode.path("refresh");
+		JsonNode nonce = jsonNode.path("client_nonce");
+
+		if (refresh.isTextual()){
+			if (BaasBoxLogger.isDebugEnabled())BaasBoxLogger.debug("refresh");
+			return F.Promise.promise(DbHelper.withDbFromContext(ctx(),()->{
+
+				Optional<ObjectNode> res = AuthenticatorService.getInstance()
+						.refresh(refresh.asText(), nonce.isTextual() ? nonce.asText() : null)
+						.map(j -> BBJson.mapper().createObjectNode().put(SessionKeys.TOKEN.toString(), j));
+				if (res.isPresent()){
+					return ok(res.get());
+				} else {
+					return unauthorized("invalid token");
+				}
+			}));
+		}
+
+		return F.Promise.pure(unauthorized("invalid token"));
+	}
 	/*
 	  @Path("/{id}")
 	  @ApiOperation(value = "Get info about current user", notes = "", httpMethod = "GET")
@@ -193,6 +220,8 @@ public class User extends Controller {
 		JsonNode appUsersAttributes = bodyJson.get(UserDao.ATTRIBUTES_VISIBLE_BY_REGISTERED_USER);
 		String username=(String) bodyJson.findValuesAsText("username").get(0);
 		String password=(String)  bodyJson.findValuesAsText("password").get(0);
+		JsonNode nonceJson =bodyJson.path("client_nonce");
+		String nonce = nonceJson.isTextual()?nonceJson.asText():null;
 		String appcode = (String)ctx().args.get("appcode");
 		if (privateAttributes!=null && privateAttributes.has("email")) {
 			//check if email address is valid
@@ -206,8 +235,12 @@ public class User extends Controller {
 		return F.Promise.promise(DbHelper.withDbFromContext(ctx(),()->{
 			//try to signup new user
 			ODocument profile = null;
+			Tokens tokens = null;
 			try {
-				UserService.signUp(username, password,null, nonAppUserAttributes, privateAttributes, friendsAttributes, appUsersAttributes,false);
+				Credentials credentials = new Credentials(username,password,"baasbox",nonce);
+				tokens = AuthenticatorService.getInstance().signup(credentials,nonAppUserAttributes,privateAttributes,friendsAttributes,appUsersAttributes);
+
+				//UserService.signUp(username, password,null, nonAppUserAttributes, privateAttributes, friendsAttributes, appUsersAttributes,false);
 				//due to issue 412, we have to reload the profile
 				profile=UserService.getUserProfilebyUsername(username);
 			} catch (InvalidJsonException e){
@@ -225,15 +258,10 @@ public class User extends Controller {
 				else return internalServerError(ExceptionUtils.getMessage(e));
 			}
 			if (BaasBoxLogger.isTraceEnabled()) BaasBoxLogger.trace("Method End");
-			ImmutableMap<SessionKeys, ? extends Object> sessionObject = SessionTokenProvider.getSessionTokenProvider().setSession(appcode, username, password);
-			response().setHeader(SessionKeys.TOKEN.toString(), (String) sessionObject.get(SessionKeys.TOKEN));
-
-			String result=prepareResponseToJson(profile);
-			ObjectMapper mapper = new ObjectMapper();
-			result = result.substring(0,result.lastIndexOf("}")) + ",\""+SessionKeys.TOKEN.toString()+"\":\""+ (String) sessionObject.get(SessionKeys.TOKEN)+"\"}";
-			JsonNode jn = mapper.readTree(result);
-
-			return created(jn);
+			ObjectNode profileJson =(ObjectNode) BBJson.mapper().readTreeOrMissing(prepareResponseToJson(profile));
+			profileJson.put(SessionKeys.TOKEN.toString(),tokens.token);
+			tokens.refresh.ifPresent(t ->profileJson.put(SessionKeys.REFRESH.toString(),t));
+			return created(profileJson);
 		}));
 	}
 
@@ -690,6 +718,7 @@ public class User extends Controller {
 		final String username;
 		final String password;
 		final String appcode;
+		final String clientNonce;
 		final String loginData;
 		
 		RequestBody body = request().body();
@@ -698,6 +727,7 @@ public class User extends Controller {
 		
 		Map<String, String[]> bodyUrlEncoded = body.asFormUrlEncoded();
 		if (bodyUrlEncoded!=null){
+			clientNonce = bodyUrlEncoded.getOrDefault("client_nonce",new String[]{null})[0];
 			if(bodyUrlEncoded.get("username")==null) 
 				return F.Promise.pure(badRequest("The 'username' field is missing"));
 			else username=bodyUrlEncoded.get("username")[0];
@@ -722,9 +752,13 @@ public class User extends Controller {
 		}else{
 			JsonNode bodyJson = body.asJson();
 
+
 			if (bodyJson==null) 
 				return F.Promise.pure(badRequest("missing data : is the body x-www-form-urlencoded or application/json? Detected: " + request().getHeader(CONTENT_TYPE)));
-			if(bodyJson.get("username")==null) 
+
+			JsonNode clientNonceJson = bodyJson.path("client_nonce");
+			clientNonce = clientNonceJson.isTextual()?clientNonceJson.asText():null;
+			if(bodyJson.get("username")==null)
 				return F.Promise.pure(badRequest("The 'username' field is missing"));
 			else 
 				username=bodyJson.get("username").asText();
@@ -754,44 +788,43 @@ public class User extends Controller {
 		}
 
 		return F.Promise.promise(()->{
-			String user;
-			try (ODatabaseRecordTx db = DbHelper.open(appcode,username,password)){
-				user = prepareResponseToJson(UserService.getCurrentUser());
-				if (loginData != null) {
-					JsonNode loginInfo = null;
-					try {
-						loginInfo =Json.parse(loginData);
-					} catch (Exception e){
-						if (BaasBoxLogger.isDebugEnabled()) BaasBoxLogger.debug ("Error parsong login_data field");
-						if (BaasBoxLogger.isDebugEnabled()) BaasBoxLogger.debug (ExceptionUtils.getFullStackTrace(e));
-						return badRequest("login_data field is not a valid json string");
-					}
-
-					Iterator<Entry<String, JsonNode>> it =loginInfo.fields();
-					HashMap<String, Object> data = new HashMap<String, Object>();
-					while (it.hasNext()){
-						Entry<String, JsonNode> element = it.next();
-						String key=element.getKey();
-						Object value=element.getValue().asText();
-						data.put(key,value);
-					}
-					UserService.registerDevice(data);
-				}
-				ImmutableMap<SessionKeys, ? extends Object> sessionObject = SessionTokenProvider.getSessionTokenProvider().setSession(appcode, username, password);
-				response().setHeader(SessionKeys.TOKEN.toString(), (String) sessionObject.get(SessionKeys.TOKEN));
-
-				ObjectMapper mapper = BBJson.mapper();
-				user = user.substring(0,user.lastIndexOf("}")) + ",\""+SessionKeys.TOKEN.toString()+"\":\""+ (String) sessionObject.get(SessionKeys.TOKEN)+"\"}";
-				JsonNode jn = mapper.readTree(user);
-				return ok(jn);
-			} catch (OSecurityAccessException e){
-				if (BaasBoxLogger.isDebugEnabled()) BaasBoxLogger.debug("UserLogin: " +  ExceptionUtils.getMessage(e));
-				return unauthorized("user " + username + " unauthorized");
-			} catch (InvalidAppCodeException e) {
-				if (BaasBoxLogger.isDebugEnabled()) BaasBoxLogger.debug("UserLogin: " + ExceptionUtils.getMessage(e));
-				return badRequest("user " + username + " unauthorized");
+			Optional<Tokens> login;
+			try(ODatabaseRecordTx db = DbHelper.open(appcode,BBConfiguration.getBaasBoxAdminUsername(),BBConfiguration.getBaasBoxAdminPassword())){
+				Credentials credentials = new Credentials(username,password,"baasbox",clientNonce);
+				login = AuthenticatorService.getInstance().login(credentials);
 			}
-		});
+			return login.map( tokens ->{
+				if (tokens.password().isPresent()){
+					try(ODatabaseRecordTx db =DbHelper.open(appcode,username,tokens.password().get())){
+						ODocument currentUser = UserService.getCurrentUser();
+						if (loginData != null){
+							JsonNode loginInfo =BBJson.mapper().readTreeOrMissing(loginData);
+							if (loginInfo.isMissingNode()){
+								if (BaasBoxLogger.isDebugEnabled()) BaasBoxLogger.debug ("Error parsong login_data field");
+								return badRequest("login_data field is not valid");
+							}
+							Map<String,Object> data = new HashMap<>();
+							loginInfo.fields().forEachRemaining(e->data.put(e.getKey(),e.getValue().asText()));
+							UserService.registerDevice(data);
+						}
+						ObjectNode resp = (ObjectNode)BBJson.mapper().readTreeOrMissing(prepareResponseToJson(currentUser));
+						resp.put(SessionKeys.TOKEN.toString(), tokens.token);
+						tokens.refresh.ifPresent(r -> resp.put(SessionKeys.REFRESH.toString(),r));
+						return ok(resp);
+					} catch (OSecurityAccessException e){
+						if (BaasBoxLogger.isDebugEnabled()) BaasBoxLogger.debug("UserLogin: " +  e.getMessage());
+						return unauthorized("user " + username + " unauthorized");
+					} catch (InvalidAppCodeException e) {
+						if (BaasBoxLogger.isDebugEnabled()) BaasBoxLogger.debug("UserLogin: " + e.getMessage());
+						return badRequest("user " + username + " unauthorized");
+					} catch (SqlInjectionException e) {
+						if (BaasBoxLogger.isDebugEnabled()) BaasBoxLogger.debug("UserLogin: "+ExceptionUtils.getMessage(e));
+						return badRequest();
+					}
+				} else {
+					return unauthorized("user "+username+ " unauthorized ");
+				}
+			}).orElseGet(()->unauthorized());});
 	}
 
 	@With ({UserCredentialWrapFilterAsync.class,ConnectToDBFilterAsync.class})
