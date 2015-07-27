@@ -53,6 +53,7 @@ import com.baasbox.security.SessionTokenProvider;
 import com.baasbox.security.SessionTokenProviderFactory;
 import com.baasbox.service.logging.BaasBoxLogger;
 import com.baasbox.service.storage.StatisticsService;
+import com.baasbox.service.watchers.WatchService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -196,6 +197,7 @@ public class Global extends GlobalSettings {
     	overrideSettings();
     	
     	//activate metrics
+    	WatchService.start();
     	BaasBoxMetric.setExcludeURIStartsWith(com.baasbox.controllers.routes.Root.startMetrics().url());
     	if (BBConfiguration.getComputeMetrics()) BaasBoxMetric.start();
     	//prepare the Welcome Message
@@ -203,7 +205,7 @@ public class Global extends GlobalSettings {
 	    if (port==null) port="9000";
 	    String address=Play.application().configuration().getString("http.address");
 	    if (address==null) address="localhost";
-	    
+
 	    //write the Welcome Message
 	    info("");
 	    info("To login into the administration console go to http://" + address +":" + port + "/console");
@@ -284,6 +286,7 @@ public class Global extends GlobalSettings {
 	    }
 	    info("Destroying session manager...");
 	    SessionTokenProvider.destroySessionTokenProvider();
+		  WatchService.stop();
 	    info("...BaasBox has stopped");
 		debug("Global.onStop() ended");
 	  }  
