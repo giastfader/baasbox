@@ -43,6 +43,7 @@ import com.baasbox.service.query.JsonTree;
 import com.baasbox.service.query.MissingNodeException;
 import com.baasbox.service.query.PartsParser;
 import com.baasbox.service.user.UserService;
+import com.baasbox.service.watchers.WatchService;
 import com.baasbox.util.QueryParams;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -80,6 +81,7 @@ public class DocumentService {
 			}
 			dao.save(doc);
 			DbHelper.commitTransaction();
+			WatchService.publishUpdate(collection);
 		}catch (OSerializationException e){
 			DbHelper.rollbackTransaction();
 			throw new InvalidJsonException(e);
@@ -118,6 +120,7 @@ public class DocumentService {
 		ODocument doc=get(collectionName,rid);
 		if (doc==null) throw new InvalidParameterException(rid + " is not a valid document");
 		//update the document
+
 		DbHelper.requestTransaction();
 		try{
 			DocumentDao dao = DocumentDao.getInstance(collectionName);
@@ -126,6 +129,7 @@ public class DocumentService {
 			dao.update(doc,(ODocument) (new ODocument()).fromJSON(bodyJson.toString()));
 			PermissionsHelper.setAcl(doc, acl);
 			DbHelper.commitTransaction();
+			WatchService.publishUpdate(collectionName);
 		}catch(AclNotValidException | UpdateOldVersionException | InvalidCollectionException e){
 			DbHelper.rollbackTransaction();
 			throw e;
@@ -160,24 +164,6 @@ public class DocumentService {
 		.append(" from ").append(rid);
 		List<ODocument> odocs = DocumentDao.getInstance(collectionName).selectByQuery(q.toString());
 		ODocument result = (odocs!=null && !odocs.isEmpty())?odocs.iterator().next():null;
-
-		//TODO:
-		/*if(parser.isArray()){
-			try {
-				ArrayNode an = (ArrayNode)mp.readTree(result.toJSON()).get(parser.last().getName());
-				PartsLexer.ArrayField af =  (PartsLexer.ArrayField)parser.last();
-				if(an.size()<af.arrayIndex){
-					throw new InvalidModelException("The index requested does not exists in model");
-				}else{
-					String json = String.format("{\"%s[%d]\":\"%s\"}",parser.last().getName(),af.arrayIndex,an.get(af.arrayIndex).textValue());
-					result = new ODocument().fromJSON(json);
-					System.out.println("JSON:"+result.toJSON());
-				}
-			} catch (Exception e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}*/
 
 		return result;
 	}
@@ -283,6 +269,7 @@ public class DocumentService {
 			throw new RuntimeException (e);
 		}
 		od = get(collectionName,rid);
+		WatchService.publishUpdate(collectionName);
 		return od;
 	}
 	
