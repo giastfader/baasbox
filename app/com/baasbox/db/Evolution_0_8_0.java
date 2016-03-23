@@ -76,6 +76,7 @@ public class Evolution_0_8_0 implements IEvolution {
 
     private void addPermissionsClass(ODatabaseRecordTx db) {
         BaasBoxLogger.info("..creating database permissions class...:");
+        db.getMetadata().reload();
         DbHelper.execMultiLineCommands(db,true,
             "create class _BB_Permissions;",
             "create property _BB_Permissions.tag String;",
@@ -87,7 +88,9 @@ public class Evolution_0_8_0 implements IEvolution {
 
             "create index _BB_Permissions.tag unique;"
         );
+        db.getMetadata().reload();
         DbHelper.createDefaultPermissionTags();
+        db.getMetadata().reload();
         BaasBoxLogger.info("...done...");
     }
     

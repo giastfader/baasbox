@@ -99,7 +99,7 @@ public class Evolution_0_9_4 implements IEvolution {
 
 	private void createDescriptionsForEndpointSwitches(ODatabaseRecordTx db) {
     	BaasBoxLogger.info("Creating descriptions for endpoint switches...");
-    	 DbHelper.execMultiLineCommands(db,true,
+    	 DbHelper.execMultiLineCommands(db,true,false,
                  "update _BB_permissions set description='Access to APIs for reading and for asset downloading.' where tag='baasbox.assets';",
                  "update _BB_permissions set description='Allows users to access their accounts, login and logout, modify their passwords.' where tag='baasbox.account';",
                  "update _BB_permissions set description='Allows users to create new accounts (signup via username/password).' where tag='baasbox.account.create';",

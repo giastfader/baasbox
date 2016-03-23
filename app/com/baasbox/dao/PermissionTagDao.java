@@ -21,6 +21,8 @@ package com.baasbox.dao;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang.exception.ExceptionUtils;
+
 import com.baasbox.BBCache;
 import com.baasbox.dao.exception.InvalidPermissionTagException;
 import com.baasbox.dao.exception.PermissionTagAlreadyExistsException;
@@ -109,7 +111,14 @@ public class PermissionTagDao  {
         document.put(DESCRIPTION,description);
         document.put(ENABLED,enabled);        
         String insertSQL = "insert into " + MODEL_NAME + " CONTENT " + document.toString();
-        ODocument execOutcome = (ODocument)DbHelper.genericSQLStatementExecute(insertSQL, null);
+        ODocument execOutcome = null;
+        try{
+        	execOutcome = (ODocument)DbHelper.genericSQLStatementExecute(insertSQL, null);
+        }catch (Exception e){
+        	BaasBoxLogger.warn("The permission " + name + " already exists. Skypping....") ;
+        	BaasBoxLogger.debug(ExceptionUtils.getFullStackTrace(e));
+        }
+        DbHelper.getConnection().commit(true);
         if (BaasBoxLogger.isTraceEnabled()) BaasBoxLogger.trace("Method End");
         return execOutcome;
     }
