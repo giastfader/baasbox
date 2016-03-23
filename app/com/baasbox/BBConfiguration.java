@@ -22,6 +22,8 @@ import java.math.BigInteger;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
 
+import com.baasbox.service.logging.BaasBoxLogger;
+
 import play.Configuration;
 import play.Play;
 
@@ -165,7 +167,7 @@ public class BBConfiguration implements IBBConfigurationKeys {
 	}
 	
 	public  Boolean isChunkedEnabled(){
-		return this.configuration.getBoolean(CHUNKED_RESPONSE) && !this.isConfiguredDBLocal();
+		return this.configuration.getBoolean(CHUNKED_RESPONSE) && this.isConfiguredDBLocal();
 	}
 	
 	public  int getChunkSize(){
