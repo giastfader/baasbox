@@ -96,7 +96,6 @@ public class ScriptingService {
         try {
             script = dao.getByNameLocked(name);
             if (script == null) throw new ScriptException("Script not found");
-            if (BBConfiguration.getInstance().isConfiguredDBLocal()) script.lock(true);
             ODocument retScript = before ? script.copy() : script;
 
             ODocument storage = script.<ODocument>field(ScriptsDao.LOCAL_STORAGE);

@@ -110,10 +110,10 @@ public class PermissionTagDao  {
         document.put(TAG,name);
         document.put(DESCRIPTION,description);
         document.put(ENABLED,enabled);        
-        String insertSQL = "insert into " + MODEL_NAME + " CONTENT " + document.toString();
+        String insertSQL = "insert into " + MODEL_NAME + " (tag,description,enabled) values (?,?,?)";
         ODocument execOutcome = null;
         try{
-        	execOutcome = (ODocument)DbHelper.genericSQLStatementExecute(insertSQL, null);
+        	execOutcome = (ODocument)DbHelper.genericSQLStatementExecute(insertSQL, new String[]{name,description,enabled + ""});
         }catch (Exception e){
         	BaasBoxLogger.warn("The permission " + name + " already exists. Skypping....") ;
         	BaasBoxLogger.debug(ExceptionUtils.getFullStackTrace(e));

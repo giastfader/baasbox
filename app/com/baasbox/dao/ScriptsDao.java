@@ -18,6 +18,7 @@
 
 package com.baasbox.dao;
 
+import com.baasbox.BBConfiguration;
 import com.baasbox.dao.exception.InvalidScriptException;
 import com.baasbox.dao.exception.ScriptAlreadyExistsException;
 import com.baasbox.dao.exception.ScriptException;
@@ -240,7 +241,7 @@ public class ScriptsDao {
 
     public ODocument getByNameLocked(String name) {			
     	OIdentifiable idf = findByName(name);
-        ODocument doc = db.load(idf.getIdentity(), null, false, false, OStorage.LOCKING_STRATEGY.KEEP_EXCLUSIVE_LOCK);
+        ODocument doc = db.load(idf.getIdentity(), null, false, false,  BBConfiguration.getInstance().isConfiguredDBLocal() ? OStorage.LOCKING_STRATEGY.KEEP_EXCLUSIVE_LOCK : OStorage.LOCKING_STRATEGY.DEFAULT);
         return doc;
     }
 
