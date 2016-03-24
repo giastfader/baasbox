@@ -1,11 +1,17 @@
+import static org.junit.Assert.assertTrue;
+import static play.test.Helpers.HTMLUNIT;
 import static play.test.Helpers.routeAndCall;
 import static play.test.Helpers.running;
+
+import java.util.HashMap;
 
 import org.junit.Before;
 
 import play.mvc.Http.Status;
+import play.libs.F.Callback;
 import play.mvc.Result;
 import play.test.FakeRequest;
+import play.test.TestBrowser;
 import core.TestConfig;
 
 
@@ -15,23 +21,24 @@ public class PushProfileTestDBNewMocked extends PushProfileAbstractTestMocked {
 
 	@Before
 	public void beforeTest(){
-		//import db
 		running
 		(
-			getFakeApplication(), 
-			new Runnable() 
-			{
-				public void run() 
+			getTestServer(), 
+			HTMLUNIT, 
+			new Callback<TestBrowser>() 
+	        {
+				public void invoke(TestBrowser browser) 
 				{
 					String sAuthEnc = TestConfig.AUTH_ADMIN_ENC;
-					FakeRequest request = new FakeRequest("DELETE", "/admin/db/100");
-					request = request.withHeader(TestConfig.KEY_APPCODE, TestConfig.VALUE_APPCODE);
-					request = request.withHeader(TestConfig.KEY_AUTH, sAuthEnc);
-					Result result = routeAndCall(request);
-					assertRoute(result, "testDelete", Status.OK, null, true);
-				}//run
-			}//Runnable() 
-		);//running
+					
+					setHeader(TestConfig.KEY_APPCODE, TestConfig.VALUE_APPCODE);
+					setHeader(TestConfig.KEY_AUTH, sAuthEnc);
+					
+					int status = httpRequest("http://localhost:3333/admin/db/2000", "DELETE",new HashMap<String,String>());
+					assertTrue("Failed! Status: " + status,status==200);	
+				}
+			}
+			);
 	}//beforeTest()
 
 	@Override

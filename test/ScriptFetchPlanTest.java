@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import core.TestConfig;
+import play.Logger;
 import play.mvc.Result;
 import play.test.FakeRequest;
 
@@ -59,6 +60,7 @@ public class ScriptFetchPlanTest {
 				
 				//result2: [{"@class":"fetchplan_test","key":"value","id":"030d3043-a7c1-4193-869d-42ecb60efc54","_links":"#11:12","_audit":{"type":"_audit","createdBy":{"@class":"OUser","roles":["#4:4"],"name":"baasbox","status":"ACTIVE"},"createdOn":"2016-02-19T14:49:42.859+0100","modifiedBy":"#5:3","modifiedOn":"2016-02-19T14:49:42.864+0100"},"_allow":["#5:3"],"_allowRead":null,"_allowUpdate":null,"_allowDelete":null,"_creation_date":"2016-02-19T14:49:42.854+0100","_author":"baasbox"}]	
 				ArrayNode result2 = (ArrayNode) jr.get("data").get("result2");
+				Logger.debug("ScriptFetchPlanTest.testGet(), result2 :" + result2.toString());
 				ObjectNode objRes2 = (ObjectNode) result2.get(0);
 				assertEquals("Evaluating key: ","value", objRes2.get("key").asText());
 				assertEquals("Evaluating 2 _allowRead", true, BBJson.isNull(objRes2.get("_allowRead")));
