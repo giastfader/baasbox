@@ -37,6 +37,7 @@ import com.baasbox.service.events.EventSource;
 import com.baasbox.service.events.EventsService;
 import com.baasbox.service.events.EventsService.StatType;
 import com.baasbox.service.logging.BaasBoxLogger;
+import com.baasbox.service.user.UserService;
 import com.orientechnologies.orient.core.metadata.security.ORole;
 import com.orientechnologies.orient.core.metadata.security.OUser;
 
@@ -108,9 +109,7 @@ public class EventsController {
         String password = (String) ctx().args.get("password");
         try {
             DbHelper.open(appcode, username, password);
-            OUser user = DbHelper.getConnection().getUser();
-            Set<ORole> roles = user.getRoles();
-            if (!roles.contains(RoleDao.getRole(DefaultRoles.ADMIN.toString()))) {
+            if (!UserService.isAnAdmin(username)) {
                 return false;
             }
             return true;
