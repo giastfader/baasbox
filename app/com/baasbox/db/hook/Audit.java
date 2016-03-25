@@ -18,14 +18,16 @@
 package com.baasbox.db.hook;
 
 import java.util.Date;
+import java.util.List;
 
-import com.baasbox.service.logging.BaasBoxLogger;
-
+import com.baasbox.BBConfiguration;
 import com.baasbox.BBInternalConstants;
 import com.baasbox.dao.NodeDao;
+import com.baasbox.db.DbHelper;
+import com.baasbox.service.logging.BaasBoxLogger;
+import com.orientechnologies.orient.core.id.ORID;
 import com.orientechnologies.orient.core.record.ORecord;
 import com.orientechnologies.orient.core.record.impl.ODocument;
-import com.orientechnologies.orient.core.hook.ORecordHook.RESULT;
 
 
 public class Audit extends BaasBoxHook {
@@ -52,10 +54,11 @@ public class Audit extends BaasBoxHook {
 						if (BaasBoxLogger.isDebugEnabled()) BaasBoxLogger.debug("  AuditHook.onRecordBeforeCreate: creation of audit fields for document " + doc.getIdentity());
 						ODocument auditDoc = new ODocument();
 						Date data = new Date();
+						ORID user = getCurrentUserRid(iRecord);
 						auditDoc.field("type",BBInternalConstants.FIELD_AUDIT);
-						auditDoc.field("createdBy",iRecord.getDatabase().getUser().getDocument().getIdentity());
+						auditDoc.field("createdBy",user);
 						auditDoc.field("createdOn",data); 
-						auditDoc.field("modifiedBy",iRecord.getDatabase().getUser().getDocument().getIdentity());
+						auditDoc.field("modifiedBy",user);
 						auditDoc.field("modifiedOn",data);
 						doc.field(BBInternalConstants.FIELD_AUDIT,auditDoc);		
 						return RESULT.RECORD_CHANGED;
@@ -65,6 +68,18 @@ public class Audit extends BaasBoxHook {
 		if (BaasBoxLogger.isTraceEnabled()) BaasBoxLogger.trace("Method End");
 		return RESULT.RECORD_NOT_CHANGED;
 	 }//onRecordBeforeCreate
+
+	private ORID getCurrentUserRid(ORecord<?> iRecord) {
+		ORID user = null;
+		if (BBConfiguration.getInstance().isConfiguredDBLocal()){
+			user = iRecord.getDatabase().getUser().getDocument().getIdentity();
+		} else {
+			//the OUser object, when using remote connection, does not have any RID
+			user = ((ODocument)((ODocument)((List) DbHelper.genericSQLStatementExecute("select @rid as rid from OUser where name = ?", new String[]{iRecord.getDatabase().getUser().getName()}))
+					.get(0)).field("rid")).getIdentity();
+		}
+		return user;
+	}
 
 	@Override
 	 public com.orientechnologies.orient.core.hook.ORecordHook.RESULT onRecordBeforeUpdate (ORecord<?> iRecord){
@@ -81,7 +96,7 @@ public class Audit extends BaasBoxHook {
 						ODocument auditDoc = doc.field(BBInternalConstants.FIELD_AUDIT);
 						if (auditDoc==null) auditDoc = new ODocument();
 						Date data = new Date();
-						auditDoc.field("modifiedBy",iRecord.getDatabase().getUser().getDocument().getIdentity());
+						auditDoc.field("modifiedBy",getCurrentUserRid(iRecord));
 						auditDoc.field("modifiedOn",data);
 						doc.field(BBInternalConstants.FIELD_AUDIT,auditDoc);	
 						if (BaasBoxLogger.isDebugEnabled()) BaasBoxLogger.debug("  AuditHook.onRecordBeforeUpdate: update of audit fields for ORecord: {} done." , iRecord.getIdentity());
