@@ -17,6 +17,8 @@
  */
 package com.baasbox.db.hook;
 
+import com.baasbox.db.DbHelper;
+import com.baasbox.service.logging.BaasBoxLogger;
 import com.orientechnologies.orient.core.record.ORecord;
 import com.orientechnologies.orient.core.record.impl.ODocument;
 
@@ -44,6 +46,8 @@ public class HidePassword extends BaasBoxHook {
 
 	public void enable(boolean enable){
 		this.enable=enable;
+		DbHelper.getConnection().setProperty("hide_pass", enable);
+		BaasBoxLogger.info("hide_pass prop: " + DbHelper.getConnection().getProperty("hide_pass"));
 	}
 
 	@Override

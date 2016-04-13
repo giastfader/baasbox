@@ -136,7 +136,7 @@ create property E.id String;
 alter property E.id notnull=true;
 create index E.id UNIQUE_HASH_INDEX;
 
---Scripts
+--Plugins
 create class _BB_Script;
 create property _BB_Script.name String;
 alter property _BB_Script.name mandatory=true;
@@ -159,3 +159,23 @@ create property _BB_Script._invalid boolean;
 alter property _BB_Script._invalid mandatory=true;
 alter property _BB_Script._invalid notnull=true;
 create index _BB_Script.name unique;
+
+
+--database scripts and triggers
+--insert into OFunction (name,language,code,parameters) values ('get_db_prop','Javascript','return db.getProperty(prop);',["prop"]);
+--insert into OFunction (name,language,code,parameters) values ('set_db_prop','Javascript','db.setProperty(prop,value);\u000areturn db.getProperties();',["prop","value"]);
+--insert into OFunction (name,language,code,parameters) values ('get_db_props','Javascript','return db.getProperties();',null);
+--insert into OFunction (name,language,code,parameters) values ('set_remove_password','Javascript','set_db_prop(\"remove_password\",bool_value);',["bool_value"]);
+--insert into OFunction (name,language,code,parameters) values ('get_remove_password','Javascript','get_db_prop(\"remove_password\");',null);
+--insert into OFunction (name,language,code,parameters) values ('trg_remove_password','Javascript','if (get_remove_password() == true && doc && doc.getClassName() && \"ouser\" == doc.getClassName().toLowerCase()){\u000a\u0009doc.removeField(\"password\");\u000a}\u000a\u000areturn 'RECORD_CHANGED';',null);
+
+
+create function get_db_prop "return db.getProperty(prop);" PARAMETERS ["prop"];
+create function set_db_prop "db.setProperty(prop,value);\u000areturn db.getProperties();" PARAMETERS ["prop","value"];
+create function get_db_props "return db.getProperties();";
+create function set_remove_password "return set_db_prop(\"remove_password\",bool_value);" PARAMETERS ["bool_value"];
+create function get_remove_password "return get_db_prop(\"remove_password\");";
+create function trg_remove_password "if (get_remove_password() == true && doc && doc.getClassName() && \"ouser\" == doc.getClassName().toLowerCase()){\u000a\u0009doc.removeField(\"password\");\u000a}\u000a\u000areturn 'RECORD_CHANGED';";
+
+alter class OIdentity SUPERCLASS OTriggered;
+--ALTER CLASS OUser CUSTOM onAfterRead=trg_remove_password
