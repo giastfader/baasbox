@@ -1147,5 +1147,44 @@ public class Admin extends Controller {
       return res;
     }));
 
+  } //getPermissionTags()
+  
+  /***** NAMED QUERIES *****/
+  
+  /***
+   * Creates a new named query
+   * The BODY must be a JSON object:
+   * {
+   * 	//Query definition
+   * 	"collection": "the collection name"
+   *    "fields": "first_name, last_name,...."
+   *    "where":....,
+   *    "groupBy":....,
+   *    "orderBy":....,
+   *    
+   *    or
+   *    
+   *    "select_statement":"... free select statement...", //if present, overrides the previous ones
+   *    
+   *    // these ones can be overridden by the caller 
+   *    "recordsPerPage":10,
+   * 	"skip": 10,
+   * 	"page": 0,
+   *    "params": ["","",....],
+   *    
+   *    //output format
+   *    "fetchPlan": "a value of the JSONFormat Enumerator, or a valid ODB fetchPlan string",
+   *    
+   *    //permissions override
+   *    "runAsAdmin":true //default is 'false'
+   * }
+   * 
+   * @param queryName The name of the query
+   * @return
+   */
+  public static F.Promise<Result> createNamedQuery(String queryName) {
+	  JsonNode json = request().body().asJson();
+	  return (F.Promise.pure(status(NOT_IMPLEMENTED)));
   }
+  
 }
