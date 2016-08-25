@@ -277,4 +277,7 @@ public class BBConfiguration implements IBBConfigurationKeys {
 		return Paths.get(getWebPath()).toFile().getAbsolutePath();
 	}
 	
+	public Long getQueryRecordsPerPage(){
+		return this.configuration.getLong(QUERY_RECORD_PER_PAGE);
+	}
 }
