@@ -62,16 +62,19 @@ public class QueryParams implements IQueryParametersKeys{
 		return cloned;
 	}
 	
-	public void recordPerPage(Integer recordPerPage) {
+	public QueryParams recordPerPage(Integer recordPerPage) {
 		this.recordPerPage=recordPerPage;
+		return this;
 	}
 	
-	public void depth(Integer depth) {
+	public QueryParams depth(Integer depth) {
 		this.depth=depth;
+		return this;
 	}
 
-	public void page(Integer page) {
+	public QueryParams page(Integer page) {
 		this.page = page;
+		return this;
 	}
 
 	protected QueryParams(){};

@@ -62,6 +62,11 @@ public final class BBJson {
         	else return value.asLong(defaultValue);
         }
         
+        public int asIntOrDefault (JsonNode value, int defaultValue){
+        	if (isNull(value)) return defaultValue;
+        	else return value.asInt(defaultValue);
+        }
+        
         public String[] asArrayOfStringsOrNull (JsonNode value){
         	if (isNull(value) || !value.isArray()) return null;
         	else {

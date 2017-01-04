@@ -159,3 +159,9 @@ create property _BB_Script._invalid boolean;
 alter property _BB_Script._invalid mandatory=true;
 alter property _BB_Script._invalid notnull=true;
 create index _BB_Script.name unique;
+
+--NAMED QUERIES
+create class _BB_Saved_Query;
+create property _BB_Saved_Query.name String;
+
+
