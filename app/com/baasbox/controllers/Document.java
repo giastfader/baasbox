@@ -113,7 +113,7 @@ public class Document extends Controller {
 	}
 
 
-	private static String prepareResponseToJson(List<ODocument> listOfDoc) throws IOException {
+	static String prepareResponseToJson(List<ODocument> listOfDoc) throws IOException {
 		response().setContentType("application/json");
 		Formats format;
 		try {

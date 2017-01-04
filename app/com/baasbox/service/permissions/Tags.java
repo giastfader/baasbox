@@ -66,7 +66,8 @@ public class Tags {
         FILES_READ("file.read","Allows to download the Files stored in BaasBox and query them."),
         FILES_WRITE("file.write","Allows to create new Files."),
         FILES_GRANTS("file.grants","Enables the possibility to modify the ACL of Files."),
-        SCRIPT_INVOKE("scripts.invoke","Allows to make calls to plugins.")
+        SCRIPT_INVOKE("scripts.invoke","Allows to make calls to plugins."),
+        SAVEDQUERY_READ("query.read","Allows the execution of pre-saved queries on server.")
         ;
         public final String name;
         public final String description;

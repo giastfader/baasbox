@@ -18,16 +18,17 @@
 
 package com.baasbox.util;
 
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+
 import com.codahale.metrics.json.MetricsModule;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.Module;
-import com.fasterxml.jackson.databind.ObjectMapper; import com.baasbox.util.BBJson;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.MissingNode;
 import com.fasterxml.jackson.databind.node.NullNode;
-
-import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Created by Andrea Tortorella on 23/06/14.
@@ -50,7 +51,40 @@ public final class BBJson {
             super.registerModule(module);
             return this;
         }
-    }
+        
+        public String asTextOrNull (JsonNode value){
+        	if (isNull(value)) return null;
+        	else return value.asText();
+        }
+        
+        public long asLongOrDefault (JsonNode value, long defaultValue){
+        	if (isNull(value)) return defaultValue;
+        	else return value.asLong(defaultValue);
+        }
+        
+        public int asIntOrDefault (JsonNode value, int defaultValue){
+        	if (isNull(value)) return defaultValue;
+        	else return value.asInt(defaultValue);
+        }
+        
+        public String[] asArrayOfStringsOrNull (JsonNode value){
+        	if (isNull(value) || !value.isArray()) return null;
+        	else {
+        		String [] toRet = new String[((ArrayNode) value).size()];
+        		for (int i=0; i< toRet.length; i++){
+        			toRet[i] = asTextOrNull( ((ArrayNode) value).get(i));
+        		}
+        		return toRet;
+        	}
+        } //asArrayOfStringsOrNull
+        
+        public boolean asBooleanOrDefault(JsonNode value, boolean defaultValue){
+        	if (isNull(value)) return defaultValue;
+        	else return value.asBoolean(defaultValue);
+        }
+        
+        
+    } //public static class ObjectMapperExt
 
     public static String prettyPrinted(JsonNode value){
         try {
@@ -69,4 +103,4 @@ public final class BBJson {
     			|| value instanceof NullNode
     			|| value instanceof MissingNode;
     }
-}
+} //BBJson

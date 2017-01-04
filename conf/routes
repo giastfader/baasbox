@@ -292,6 +292,17 @@ POST	/admin/role/:name				com.baasbox.controllers.Admin.createRole(name: String)
 PUT		/admin/role/:name				com.baasbox.controllers.Admin.editRole(name: String)
 DELETE  /admin/role/:name				com.baasbox.controllers.Admin.deleteRole(name: String)
 
+POST 	/admin/savedquery/:name			com.baasbox.controllers.Admin.createNamedQuery(name: String)
+PUT		/admin/savedquery/:name			com.baasbox.controllers.Admin.updateNamedQuery(name: String)
+GET 	/admin/savedquery				com.baasbox.controllers.Admin.getNamedQueries()
+DELETE	/admin/savedquery/:name			com.baasbox.controllers.Admin.deleteNamedQuery(name: String)
+
+#Named Query
+
+# @tag(baasbox.query.read)
+GET		/query/:name					com.baasbox.controllers.SavedQueryController.execute(name: String)
+
+
 #Files
 
 # @tag(baasbox.file.read)

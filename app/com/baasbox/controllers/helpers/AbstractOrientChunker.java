@@ -79,6 +79,8 @@ public abstract class  AbstractOrientChunker extends StringChunks {
 			    final QueryParams criteria =  (QueryParams) params.get("criteria");
 			    final String query = (String) params.get("query");
 			    if (BaasBoxLogger.isDebugEnabled()) BaasBoxLogger.debug("CHUNKED: ready to execute query: {}", query);
+			    if (BaasBoxLogger.isDebugEnabled()) BaasBoxLogger.debug("CHUNKED: with criteria {}", criteria.toString());
+			    
 			    if (BaasBoxLogger.isDebugEnabled()) BaasBoxLogger.debug("CHUNKED: opening connection");
 			    
 			  	DbHelper.open(appcode,username,password);
@@ -150,7 +152,7 @@ public abstract class  AbstractOrientChunker extends StringChunks {
 		private String username;
 		private String password;
 		private String query = "";
-		private QueryParams criteria;
+		protected QueryParams criteria;
 		private String moreFieldValue;
 		private boolean setMoreField;
 		private String[] callId;

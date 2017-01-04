@@ -27,24 +27,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.zip.ZipInputStream;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
-
-import play.Play;
-import play.libs.F;
-import play.libs.F.Promise;
-import play.libs.Json;
-import play.libs.WS;
-import play.mvc.Controller;
-import play.mvc.Http;
-import play.mvc.Http.Context;
-import play.mvc.Http.MultipartFormData;
-import play.mvc.Http.MultipartFormData.FilePart;
-import play.mvc.Result;
-import play.mvc.With;
 
 import com.baasbox.BBConfiguration;
 import com.baasbox.configuration.IProperties;
@@ -55,6 +44,8 @@ import com.baasbox.controllers.actions.filters.ConnectToDBFilterAsync;
 import com.baasbox.controllers.actions.filters.ExtractQueryParameters;
 import com.baasbox.controllers.actions.filters.UserCredentialWrapFilterAsync;
 import com.baasbox.dao.RoleDao;
+import com.baasbox.dao.SavedQueryDao;
+import com.baasbox.dao.SavedQueryDao.SavedQuery;
 import com.baasbox.dao.UserDao;
 import com.baasbox.dao.exception.AdminCannotChangeRoleException;
 import com.baasbox.dao.exception.CollectionAlreadyExistsException;
@@ -63,6 +54,7 @@ import com.baasbox.dao.exception.FileNotFoundException;
 import com.baasbox.dao.exception.InvalidCollectionException;
 import com.baasbox.dao.exception.InvalidModelException;
 import com.baasbox.dao.exception.InvalidPermissionTagException;
+import com.baasbox.dao.exception.SavedQueryAlreadyExistsException;
 import com.baasbox.dao.exception.SqlInjectionException;
 import com.baasbox.dao.exception.UserAlreadyExistsException;
 import com.baasbox.db.DbHelper;
@@ -93,6 +85,7 @@ import com.baasbox.util.JSONFormats.Formats;
 import com.baasbox.util.QueryParams;
 import com.baasbox.util.Util;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableMap;
 import com.orientechnologies.orient.core.db.record.ODatabaseRecordTx;
@@ -102,6 +95,19 @@ import com.orientechnologies.orient.core.metadata.security.OUser;
 import com.orientechnologies.orient.core.record.impl.ODocument;
 import com.orientechnologies.orient.core.serialization.serializer.OJSONWriter;
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException;
+
+import play.Play;
+import play.libs.F;
+import play.libs.F.Promise;
+import play.libs.Json;
+import play.libs.WS;
+import play.mvc.Controller;
+import play.mvc.Http;
+import play.mvc.Http.Context;
+import play.mvc.Http.MultipartFormData;
+import play.mvc.Http.MultipartFormData.FilePart;
+import play.mvc.Result;
+import play.mvc.With;
 
 @With  ({UserCredentialWrapFilterAsync.class,ConnectToDBFilterAsync.class, CheckAdminRoleFilterAsync.class,ExtractQueryParameters.class})
 public class Admin extends Controller {
@@ -1147,5 +1153,92 @@ public class Admin extends Controller {
       return res;
     }));
 
-  }
+  } //getPermissionTags()
+  
+  /***** NAMED QUERIES *****/
+  
+  /***
+   * Creates a new named query
+   * The BODY must be a JSON object:
+   * {
+   * 	//Query definition
+   * 	
+{
+   "resource":"documents",
+   "collection_name": "the collection name",
+   "fields": "first_name, last_name,....",
+   "where":"",
+   "groupBy":"....",
+   "orderBy":"....",
+   "free_statement":"... free db statement...", 
+   "recordsPerPage":10,
+   "skip": 10,
+   "page": 0,
+   "params": ["","",3],
+   "fetchPlan": "a value of the JSONFormat Enumerator, or a valid ODB fetchPlan string",
+   "runAsAdmin":true,
+   "can_override_pagination": true,
+   "can_override_parameters":true
+}
+   * 
+   * @param queryName The name of the query
+   * @return
+   */
+  public static F.Promise<Result> createNamedQuery(String name) {
+	  return _createNamedQuery(name, false);
+  } //createNamedQuery
+  
+
+  
+  public static F.Promise<Result> getNamedQueries() {
+	  return F.Promise.promise(DbHelper.withDbFromContext(ctx(), () -> {
+		  List<SavedQuery> listOfDocs = SavedQueryDao.getInstance().getAll();
+		  List<ObjectNode> toRet = listOfDocs.stream().map(x->{
+			  return x.toJSON();
+		  }).collect(Collectors.toList());
+		  return ok(toJson(toRet));
+	  }));
+  }//getNamedQueries
+  
+  public static F.Promise<Result> deleteNamedQuery(String name) {
+	  return F.Promise.promise(DbHelper.withDbFromContext(ctx(), () -> {
+		  SavedQueryDao.getInstance().delete(name);
+		  return ok();
+	  }));
+  }//getNamedQueries
+  
+  public static F.Promise<Result> updateNamedQuery(String name) {
+	  return _createNamedQuery(name, true);
+  }//getNamedQueries
+  
+  /** 
+   * This method is called by both createNamedQuery and updateQuery
+   * @param name
+   * @param delete true if a previous query with the same name must be deleted before to create the new one
+   * @return
+   */
+  private static F.Promise<Result> _createNamedQuery (String name, boolean delete) {
+	  return F.Promise.promise(DbHelper.withDbFromContext(ctx(), () -> {
+		  SavedQuery nq;
+		  try {
+			  if (delete) SavedQueryDao.getInstance().delete(name);
+			  ObjectNode json = (ObjectNode)request().body().asJson();
+			  json.put(SavedQueryDao.NAME, name);
+			  nq = SavedQuery.build(json);
+			  nq = SavedQueryDao.getInstance().create(nq);
+			} catch (SqlInjectionException e) {
+				return badRequest("The request is malformed: check your query criteria");
+			} catch (SavedQueryAlreadyExistsException e) {
+				return status(400,"NamedQuery " + name + " already exists");
+			} catch (IllegalArgumentException e) {
+				BaasBoxLogger.error("Cannot create the NamedQuery " + name,e);
+				return status(400,e.getMessage());
+			} catch (Exception e) {
+				BaasBoxLogger.error("Cannot create the NamedQuery " + name,e);
+				throw e;
+			}
+		  return ok(nq.toJSON());
+	  }));
+  } //_createNamedQuery
+  
 }
